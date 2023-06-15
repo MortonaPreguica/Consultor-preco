@@ -1,70 +1,44 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
-	"regexp"
-	"strconv"
-
 	"log"
 
-	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/gocolly/colly"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
-	lambda.Start(handler)
-
-}
-func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	log.Print("Hello world")
-
-	response := events.APIGatewayProxyResponse{
-		StatusCode: 200,
+	db, err := sql.Open("mysql", "root:password@tcp(localhost:3306)/app_development")
+	if err != nil {
+		// handle the error
+		log.Print(err.Error())
 	}
-	return response, nil
-}
+	defer db.Close()
 
-type Produto struct {
-	nome  string
-	preco float64
-}
+	err = db.Ping()
+	if err != nil {
+		// handle the error
+	}
+	rows, err := db.Query("SELECT * FROM Usuario")
+	if err != nil {
+		// handle the error
+	}
+	defer rows.Close()
 
-func scrapingPro() {
-	// Instantiate default collector
-	c := colly.NewCollector(
-		// Visit only domains: hackerspaces.org, wiki.hackerspaces.org
-		colly.AllowedDomains("hackerspaces.org", "wiki.hackerspaces.org", "www.amazon.com.br"),
-		colly.UserAgent("Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"),
-	)
-	// On every a element which has href attribute call callback
-	c.OnHTML("#centerCol", func(e *colly.HTMLElement) {
-		nomeProduto := e.ChildText("#productTitle")
-
-		valorRaw := e.ChildText("#sns-base-price")
-		re := regexp.MustCompile("[0-9]+")
-		valores := re.FindAllString(valorRaw, -1)
-		valor := fmt.Sprintf("%s.%s", valores[0], valores[1])
-		num, err := strconv.ParseFloat(valor, 64)
+	for rows.Next() {
+		var id int
+		var name string
+		// scan the values from the row into variables
+		err = rows.Scan(&id, &name)
 		if err != nil {
-			fmt.Println("Erro na conversão:", err)
-			return
+			// handle the error
 		}
-		produto := &Produto{nome: nomeProduto, preco: num}
-		// Print link
-		fmt.Println(produto)
-		// Visit link found on page
-		// Only those links are visited which are in AllowedDomains
-		//c.Visit(e.Request.AbsoluteURL(link))
-	})
+		// use the retrieved values
+		fmt.Println(id, name)
+	}
 
-	// Before making a request print "Visiting ..."
-	c.OnRequest(func(r *colly.Request) {
-		r.Headers.Set("X-Requested-With", "XMLHttpRequest")
-		fmt.Println("UserAgent", r.Headers.Get("User-Agent"))
-		fmt.Println("Visiting", r.URL.String())
-	})
-
-	// Start scraping on https://hackerspaces.org
-	c.Visit("https://www.amazon.com.br/dp/B07LBM4STJ/ref=sspa_dk_detail_2?psc=1&pd_rd_i=B07LBM4STJ&pd_rd_w=EyG0c&content-id=amzn1.sym.dd14805d-2347-4e14-a8a3-4a68eee2b6c8&pf_rd_p=dd14805d-2347-4e14-a8a3-4a68eee2b6c8&pf_rd_r=QZ1EASF9F3YFQ1YKJ4SZ&pd_rd_wg=A5kAg&pd_rd_r=42f1f4ca-fc55-4757-9269-d98f5459e500&s=hpc&sp_csd=d2lkZ2V0TmFtZT1zcF9kZXRhaWw")
+	if err = rows.Err(); err != nil {
+		// handle the error
+	}
 }
