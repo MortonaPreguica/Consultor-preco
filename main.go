@@ -9,6 +9,10 @@ import (
 )
 
 func main() {
+
+}
+
+func db() {
 	db, err := sql.Open("mysql", "root:password@tcp(localhost:3306)/app_development")
 	if err != nil {
 		// handle the error
