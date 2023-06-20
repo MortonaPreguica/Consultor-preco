@@ -1,0 +1,61 @@
+version: '3.9'
+
+services:
+
+  air: 
+    container_name: app
+    image: cosmtrek/air:v1.28.0
+    working_dir: /app
+    depends_on:
+      - db_migrate
+    ports:
+      - 3000:3000
+    environment:
+      - LOAD_ENV_FILE=true
+    volumes:
+      - ./:/app/
+
+
+  app:
+    container_name: app
+    build: .
+    depends_on:
+      - db_migrate
+    environment:
+      - LOAD_ENV_FILE=true
+    ports:
+      - 3000:3000
+    volumes:
+      - ./.env:/.env
+
+  db:
+    image: mysql
+    restart: always
+    volumes:
+      - data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=test_db
+    ports:
+      - "3306:3306"
+      - "8087:8080"
+
+  db_migrate:
+    image: migrate/migrate
+    volumes:
+      - ./migrations:/migrations
+    command: ["-path", "migrations", "-database", "sql"]
+    depends_on:
+      - waitfordb
+
+  waitfordb:
+    image: bash:devel-alpine3.15
+    command: ["db:3306"]
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: "/scripts/waitforit.sh db:3306 -t 10 -s"
+    depends_on:
+      - db
+
+volumes:
+  data:
